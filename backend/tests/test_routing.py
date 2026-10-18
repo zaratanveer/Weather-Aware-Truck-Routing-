@@ -99,14 +99,79 @@ class TestFetchRoutes:
             ok(osrm_route([0, 1, 2], 600)),  # 1,200 s
             ok(osrm_route([0, 1, 2], 1000)),  # 2,000 s: more than 1.5x slower
             ok(osrm_route([0, 1, 2], 601)),  # same distance and time: duplicate
+            ok(osrm_route([0, 1, 2], 1000)),  # wider detours: also too slow
+            ok(osrm_route([0, 1, 2], 1000)),
         ]
 
         assert len(fetch_routes(ORIGIN, DESTINATION)) == 1
+
+    def test_out_and_back_spur_is_cut_off_the_detour(self, fake_get_json: Mock) -> None:
+        # Leg 1 drives east to lon 1, then up a dead-end road to lat 0.5 (the detour
+        # point); leg 2 comes straight back down and carries on north-east.
+        with_spur = {
+            "geometry": {"coordinates": [[0, 0], [1, 0], [1, 0.5], [1, 0], [2, 1]]},
+            "legs": [
+                {"annotation": {"duration": [600, 150]}},
+                {"annotation": {"duration": [150, 700]}},
+            ],
+        }
+        other = osrm_route([0, 1.4, 2.8], 650, legs=2)
+        fake_get_json.side_effect = [ok(osrm_route([0, 1, 2], 600)), ok(with_spur), ok(other)]
+
+        detour = fetch_routes(ORIGIN, DESTINATION)[1]
+
+        # The spur (up to lat 0.5 and back) is gone, and so is its driving time.
+        assert LatLon(0.5, 1) not in detour.points
+        assert detour.points[0] == LatLon(0, 0)
+        assert detour.points[-1] == LatLon(1, 2)
+        assert detour.duration_seconds == 600 + 700
+
+    def test_detour_that_is_only_a_spur_becomes_a_duplicate(self, fake_get_json: Mock) -> None:
+        # Without its spur this detour is exactly the main route, so it is dropped.
+        spur_only = {
+            "geometry": {"coordinates": [[0, 0], [1, 0], [1, 0.5], [1, 0], [2, 0]]},
+            "legs": [
+                {"annotation": {"duration": [600, 150]}},
+                {"annotation": {"duration": [150, 600]}},
+            ],
+        }
+        fake_get_json.side_effect = [ok(osrm_route([0, 1, 2], 600))] + [ok(spur_only)] * 4
+
+        assert len(fetch_routes(ORIGIN, DESTINATION)) == 1
+
+    def test_detour_that_passes_through_its_detour_point_is_kept(self, fake_get_json: Mock) -> None:
+        through = {
+            "geometry": {"coordinates": [[0, 0], [1, 0.5], [2, 0]]},
+            "legs": [{"annotation": {"duration": [700]}}, {"annotation": {"duration": [700]}}],
+        }
+        other = osrm_route([0, 1.4, 2.8], 650, legs=2)
+        fake_get_json.side_effect = [ok(osrm_route([0, 1, 2], 600)), ok(through), ok(other)]
+
+        detour = fetch_routes(ORIGIN, DESTINATION)[1]
+
+        assert detour.is_detour
+        assert detour.points == [LatLon(0, 0), LatLon(0.5, 1), LatLon(0, 2)]  # nothing cut
+
+    def test_wider_detours_are_tried_when_near_ones_fail(self, fake_get_json: Mock) -> None:
+        fake_get_json.side_effect = [
+            ok(osrm_route([0, 1, 2], 600)),
+            {"code": "NoRoute", "routes": []},  # near detour, side A
+            {"code": "NoRoute", "routes": []},  # near detour, side B
+            ok(osrm_route([0, 0.8, 2.2], 700, legs=2)),  # wide detour, side A
+            ok(osrm_route([0, 1.3, 2.6], 750, legs=2)),  # wide detour, side B
+        ]
+
+        routes = fetch_routes(ORIGIN, DESTINATION)
+
+        assert len(routes) == 3
+        assert fake_get_json.call_count == 5
 
     def test_failed_detour_requests_are_skipped(self, fake_get_json: Mock) -> None:
         fake_get_json.side_effect = [
             ok(osrm_route([0, 1], 600)),
             ExternalServiceError("Routing service is not responding right now."),
+            {"code": "NoRoute", "routes": []},
+            {"code": "NoRoute", "routes": []},
             {"code": "NoRoute", "routes": []},
         ]
 
