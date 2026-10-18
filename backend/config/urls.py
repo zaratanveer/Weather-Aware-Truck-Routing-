@@ -1,4 +1,5 @@
-from django.urls import path
+from django.urls import include, path
 
-# API routes are added in the next step (planner/urls.py).
-urlpatterns: list = []
+urlpatterns = [
+    path("api/", include("planner.urls")),
+]
