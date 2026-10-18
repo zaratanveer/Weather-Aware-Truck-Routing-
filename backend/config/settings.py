@@ -60,6 +60,10 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
 }
 
+# Hosting platforms (e.g. Render) end HTTPS at their proxy and forward plain
+# HTTP; this header tells Django the original request was secure.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
 # Browsers only let these origins (the React app) call the API.
 CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 
