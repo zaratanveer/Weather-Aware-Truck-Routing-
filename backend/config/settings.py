@@ -42,6 +42,8 @@ MIDDLEWARE = [
     # Must come first so CORS headers are added even to error responses.
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    # Route geometries are large JSON; gzip shrinks them by roughly 80%.
+    "django.middleware.gzip.GZipMiddleware",
     "django.middleware.common.CommonMiddleware",
 ]
 
@@ -64,3 +66,13 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS", "http://localhost:5173")
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_TZ = True
+
+# --- Third-party services -------------------------------------------------
+
+# Optional. When set, Mapbox is used for geocoding and routing; otherwise the
+# free, key-less Photon (geocoding) and OSRM (routing) services are used.
+MAPBOX_TOKEN = os.getenv("MAPBOX_TOKEN", "")
+
+# The public OSM-based services ask every client to identify itself.
+HTTP_USER_AGENT = os.getenv("HTTP_USER_AGENT", "WeatherAwareTruckRouting/1.0")
+HTTP_TIMEOUT_SECONDS = float(os.getenv("HTTP_TIMEOUT_SECONDS", "20"))
