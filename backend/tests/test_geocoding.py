@@ -51,7 +51,7 @@ class TestSearchPlaces:
         url, params, _ = fake_get_json.call_args.args
         assert url == geocoding.PHOTON_URL
         assert params["q"] == "dal"
-        assert params["limit"] == 2
+        assert params["limit"] == 4  # twice the limit, to make up for duplicates
 
     def test_mapbox_is_used_when_a_token_is_set(self, fake_get_json: Mock, settings) -> None:
         settings.MAPBOX_TOKEN = "test-token"
@@ -63,6 +63,16 @@ class TestSearchPlaces:
         url, params, _ = fake_get_json.call_args.args
         assert url == geocoding.MAPBOX_GEOCODING_URL
         assert params["access_token"] == "test-token"
+
+    def test_repeated_labels_keep_only_the_best_match(self, fake_get_json: Mock, settings) -> None:
+        settings.MAPBOX_TOKEN = ""
+        city, county = PHOTON_RESPONSE["features"][0], dict(PHOTON_RESPONSE["features"][0])
+        county["geometry"] = {"coordinates": [-96.77, 32.77]}
+        fake_get_json.return_value = {"features": [city, county]}
+
+        places = search_places("dallas")
+
+        assert places == [Place("Dallas, Texas, United States", LatLon(32.7763, -96.7968))]
 
     def test_no_matches_gives_empty_list(self, fake_get_json: Mock, settings) -> None:
         settings.MAPBOX_TOKEN = ""

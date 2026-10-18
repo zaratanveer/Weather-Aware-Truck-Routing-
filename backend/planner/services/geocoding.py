@@ -25,10 +25,21 @@ class Place:
 
 
 def search_places(query: str, limit: int = 5) -> list[Place]:
-    """Places matching `query`, best match first."""
-    if settings.MAPBOX_TOKEN:
-        return _search_mapbox(query, limit)
-    return _search_photon(query, limit)
+    """Places matching `query`, best match first, without repeated labels."""
+    # Ask for extra results because some are dropped as duplicates below.
+    fetch_limit = limit * 2
+    places = (
+        _search_mapbox(query, fetch_limit)
+        if settings.MAPBOX_TOKEN
+        else _search_photon(query, fetch_limit)
+    )
+
+    # e.g. Dallas city and Dallas County both read "Dallas, Texas, United States";
+    # keep the first (best-ranked) one so the list never shows look-alike entries.
+    unique: dict[str, Place] = {}
+    for place in places:
+        unique.setdefault(place.label, place)
+    return list(unique.values())[:limit]
 
 
 def _search_photon(query: str, limit: int) -> list[Place]:
