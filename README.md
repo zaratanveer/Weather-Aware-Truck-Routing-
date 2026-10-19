@@ -9,7 +9,8 @@ hour the truck will actually be there**, rates each checkpoint with the risk rul
 recommends the best route. Everything is shown on a map with a weather heatmap and a
 0–48 hour forecast slider.
 
-- **Live app:** _coming soon_ <!-- TODO: add the hosted URL -->
+- **Live app:** https://weather-aware-truck-routing-pi.vercel.app
+- **API:** https://weather-truck-routing-api-alpha.vercel.app/api/health/
 - **Video walkthrough:** _coming soon_ <!-- TODO: add the Loom link -->
 
 ![Screenshot of the app](docs/screenshot.png) <!-- TODO: add a screenshot -->
@@ -37,7 +38,7 @@ recommends the best route. Everything is shown on a map with a weather heatmap a
 | Part     | Technology |
 | -------- | ---------- |
 | Backend  | Python 3.12, Django 6, Django REST Framework, requests, pytest |
-| Frontend | React 19, TypeScript, Vite, MapLibre GL (via react-map-gl), deck.gl |
+| Frontend | React 19, TypeScript, Vite, MapLibre GL (via react-map-gl) |
 | Map      | OpenFreeMap "Positron" vector tiles (free, no key) |
 
 ## Third-party APIs (and why)
@@ -95,7 +96,7 @@ directly.
 | `api/` | Typed API client and the shared JSON types. |
 | `hooks/` | `useTripPlanner` (plan, then heatmap), `usePlaceSearch` (debounced autocomplete). |
 | `components/` | Form, autocomplete, map, popups, route cards, heatmap panel, legend. |
-| `map/` | deck.gl layer builders, heatmap images, bounds, MapLibre worker setup. |
+| `map/` | MapLibre layer styles and GeoJSON, heatmap images, bounds, MapLibre worker setup. |
 
 ---
 
@@ -174,9 +175,13 @@ says so instead of inventing one.
 - Each cell's intensity moves smoothly between levels (e.g. 30 mph is halfway from Moderate
   to High) but always stays inside the official level band. The colours never contradict
   the risk rules.
-- The frontend turns each hour into a tiny image (one pixel per grid point). The GPU
-  stretches and smooths it over the map. The slider only swaps which pre-built image is
-  shown, so it stays smooth.
+- The frontend turns each hour into a small image. Each pixel blends the four nearest grid
+  points (bilinear interpolation), with rows placed in map (Mercator) space so the image
+  lines up exactly with the grid. All 49 images are built once when the data arrives; the
+  slider only swaps which pre-built image the map shows, so it stays smooth.
+- Routes, checkpoints and the heatmap are all drawn by MapLibre itself (no extra WebGL
+  library), which keeps the bundle small and renders reliably on older laptop GPUs.
+  Highlighting a route only changes a style expression; the data is not rebuilt.
 
 ---
 
@@ -209,6 +214,18 @@ Open http://localhost:5173. Pick an origin and destination from the suggestions,
 departure and load, and click **Plan routes**.
 
 Other frontend commands: `npm run build` (type-check + production build), `npm run lint`.
+
+## Deployment
+
+Both apps are on [Vercel](https://vercel.com) (free Hobby plan), as two projects from this
+repository:
+
+| Project | Root directory | Preset | Environment variables |
+| ------- | -------------- | ------ | --------------------- |
+| Backend | `backend` | Django (Python serverless function, see `backend/vercel.json`) | `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS=.vercel.app`, `CORS_ALLOWED_ORIGINS=<frontend URL>` |
+| Frontend | `frontend` | Vite | `VITE_API_URL=<backend URL>/api` |
+
+Every push to `main` redeploys both projects.
 
 ## Environment variables
 
@@ -289,5 +306,8 @@ The frontend is type-checked in strict mode (`npm run build`) and linted (`npm r
   few kilometres. Points within about 1 km share a forecast. The heatmap uses a 15 × 15 grid,
   which is coarse for very long trips.
 - **Forecast range.** Departures more than 7 days ahead are rejected.
+- **Serverless cache.** On Vercel the in-memory cache (heatmap forecasts, place search)
+  lives only as long as one function instance, so repeat requests are sometimes slower.
+  Results are always the same.
 - **Free public services.** OSRM's demo server, Photon and Open-Meteo have rate limits and no
   uptime guarantee. Responses are cached where possible to stay polite.

@@ -513,8 +513,3 @@
   margin: 0;
   font-weight: 600;
 }
-
-/* deck.gl draws on its own canvas above the map; keep popups above that canvas. */
-.maplibregl-popup {
-  z-index: 2;
-}

@@ -12,7 +12,7 @@ export const RISK_COLORS: Record<RiskLevel, string> = {
 };
 
 /** Route line colours, chosen so they don't clash with the risk colours. */
-const ROUTE_COLORS = ['#2563eb', '#0891b2', '#334155'];
+export const ROUTE_COLORS = ['#2563eb', '#0891b2', '#334155'];
 
 export function routeColor(index: number): string {
   return ROUTE_COLORS[index % ROUTE_COLORS.length];

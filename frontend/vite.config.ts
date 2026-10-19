@@ -5,7 +5,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [react()],
   build: {
-    // MapLibre + deck.gl are ~2 MB minified (~560 kB gzipped): expected for a WebGL map app.
-    chunkSizeWarningLimit: 2100,
+    // MapLibre is ~1.3 MB minified (~380 kB gzipped): expected for a WebGL map app.
+    chunkSizeWarningLimit: 1400,
   },
 });
