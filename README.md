@@ -11,9 +11,9 @@ recommends the best route. Everything is shown on a map with a weather heatmap a
 
 - **Live app:** https://weather-aware-truck-routing-pi.vercel.app
 - **API:** https://weather-truck-routing-api-alpha.vercel.app/api/health/
-- **Video walkthrough:** _coming soon_ <!-- TODO: add the Loom link -->
+- **Video walkthrough (Loom):** https://www.loom.com/share/9dc2a54b56ab4e8282327659b2eeb2bc
 
-![Screenshot of the app](docs/screenshot.png) <!-- TODO: add a screenshot -->
+![Screenshot of the app](docs/screenshot.png)
 
 ---
 
